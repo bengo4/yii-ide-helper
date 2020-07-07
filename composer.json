@@ -1,0 +1,32 @@
+{
+    "name": "bengo4/yii-ide-helper",
+    "license": "MIT",
+    "description": "",
+    "scripts": {
+        "test": [
+            "phpunit"
+        ],
+        "cs-fix": [
+            "php-cs-fixer fix ./src"
+        ],
+        "phpstan": [
+            "phpstan analyse -l 7 ./src"
+        ]
+    },
+    "require": {
+        "php":">=7.2.12",
+        "nikic/php-parser": "^4.3",
+        "vlucas/phpdotenv": "^5.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.16",
+        "phpunit/phpunit": "^8.5",
+        "phpstan/phpstan": "^0.12.32"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bengo4\\YiiIdeHelper\\": "src/"
+        }
+    },
+    "bin": ["./bin/ormdoc"]
+}
