@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../bootstrap/bootstrap.php';
+
+use Bengo4\YiiIdeHelper\Converters\AddORMPhpDocConverter;
+use Bengo4\YiiIdeHelper\FileSystem\FileGenerator;
+use Bengo4\YiiIdeHelper\Database\Database;
+
+$longs = [
+  'path:',
+  'mode:',
+];
+
+$options = getopt('', $longs);
+
+try {
+    if (empty($options['path'])) {
+        throw new RuntimeException('[--path] option is required.');
+    }
+    $mode = isset($options['mode']);
+
+    $converter = new AddORMPhpDocConverter(new Database($mode));
+    $fileGenerator = new FileGenerator($converter);
+    $fileGenerator->generate($options['path']);
+} catch (Exception $e) {
+    echo $e->getMessage() . PHP_EOL;
+    exit(1);
+}
