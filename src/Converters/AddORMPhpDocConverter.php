@@ -11,8 +11,9 @@ use Bengo4\YiiIdeHelper\Converters\Builders\PhpDoc\ClassPhpDocBuilder;
 use Bengo4\YiiIdeHelper\Converters\Builders\PhpDoc\Property;
 use Bengo4\YiiIdeHelper\Converters\Printers\PrinterInterface;
 use Bengo4\YiiIdeHelper\Converters\Printers\Php7PreservingPrinter;
-use Bengo4\YiiIdeHelper\Visitors\AddClassPropertyDocVisitor;
+use Bengo4\YiiIdeHelper\Visitors\AddClassDocVisitor;
 use Bengo4\YiiIdeHelper\Visitors\CollectRelationClassVisitor;
+use Bengo4\YiiIdeHelper\Visitors\CollectScopeMethodVisitor;
 
 class AddORMPhpDocConverter implements ConverterInterface
 {
@@ -44,12 +45,9 @@ class AddORMPhpDocConverter implements ConverterInterface
         $stmt = $this->printer->getAst($code);
 
         $tableName = $this->getTableName($filePath);
-        $columnList = $tableName ? $this->getColumnPropertyList($tableName) : [];
+        $columnList = $this->getColumnPropertyList($tableName) ?? [];
 
-        if (empty($columnList)) {
-            return '';
-        }
-        $this->addPropertyDoc($stmt, $columnList);
+        $this->addPhpDoc($stmt, $columnList);
 
         return $this->printer->print($stmt);
     }
@@ -61,14 +59,23 @@ class AddORMPhpDocConverter implements ConverterInterface
      * @param Property[] $columnList
      * @return Node[]
      */
-    private function addPropertyDoc(array $newStmts, array $columnList): array
+    private function addPhpDoc(array $newStmts, array $columnList): array
     {
-        $propertyList = array_merge($columnList, $this->getRelationProperty($newStmts));
-        $builder = new ClassPhpDocBuilder($propertyList);
-        $addClassPropertyDocVisitor = new AddClassPropertyDocVisitor($builder);
+        $propertyList = array_merge($columnList, $this->createRelationPropertyList($newStmts, $columnList));
+        $methodList = $this->getScopeMethod($newStmts);
+
+        if (empty($propertyList) && empty($methodList)) {
+            return $newStmts;
+        }
+
+        $builder = new ClassPhpDocBuilder();
+        $builder->setPropertyList($propertyList);
+        $builder->setMethodList($methodList);
+
+        $addClassDocVisitor = new AddClassDocVisitor($builder);
 
         $traverser = new NodeTraverser();
-        $traverser->addVisitor($addClassPropertyDocVisitor);
+        $traverser->addVisitor($addClassDocVisitor);
         return $traverser->traverse($newStmts);
     }
 
@@ -78,13 +85,30 @@ class AddORMPhpDocConverter implements ConverterInterface
      * @param Node[] $newStmts
      * @return Property[]
      */
-    private function getRelationProperty(array $newStmts): array
+    private function createRelationPropertyList(array $newStmts): array
     {
-        $collectRelationClassVisitor = new CollectRelationClassVisitor();
         $traverser = new NodeTraverser();
-        $traverser->addVisitor($collectRelationClassVisitor);
+        $collectVisitor = new CollectRelationClassVisitor();
+        $collectVisitor->setHasNamespace($namespaceVisitor->hasNameSpace());
+        $traverser->addVisitor($collectVisitor);
+
         $traverser->traverse($newStmts);
-        return $collectRelationClassVisitor->getPropertyList();
+        return $collectVisitor->getPropertyList();
+    }
+
+    /**
+     * 構文木から、scopesメソッドに定義されているプロパティを抽出します
+     *
+     * @param Node[] $newStmts
+     * @return Property[]
+     */
+    private function getScopeMethod(array $newStmts): array
+    {
+        $collectVisitor = new CollectScopeMethodVisitor();
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor($collectVisitor);
+        $traverser->traverse($newStmts);
+        return $collectVisitor->getMethodList();
     }
 
     /**

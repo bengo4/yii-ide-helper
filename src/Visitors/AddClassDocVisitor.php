@@ -9,7 +9,7 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
 use Bengo4\YiiIdeHelper\Converters\Builders\PhpDoc\ClassPhpDocBuilder;
 
-class AddClassPropertyDocVisitor extends NodeVisitorAbstract
+class AddClassDocVisitor extends NodeVisitorAbstract
 {
     /**
      * @var ClassPhpDocBuilder
@@ -49,7 +49,10 @@ class AddClassPropertyDocVisitor extends NodeVisitorAbstract
             $this->builder->setDefaultComment($node->name->toString());
         }
 
-        $doc = $this->builder->createPropertyDoc();
+        $this->builder->addPropertyDoc();
+        $this->builder->addMethodDoc();
+        $doc = $this->builder->getDoc();
+
         $node->setDocComment($doc);
     }
 };

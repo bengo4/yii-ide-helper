@@ -20,51 +20,94 @@ class ClassPhpDocBuilder extends PhpDocBuilder
     private $propertyList;
 
     /**
+     * @var Method[] $methodList
+     */
+    private $methodList;
+
+    /**
      * @var string
      */
     private const PROPERTY_PHP_DOC = '@property';
 
     /**
-     * @param Property[] $propertyList
+     * @var string
      */
-    public function __construct(array $propertyList)
+    private const METHOD_PHP_DOC = '@method';
+
+    /**
+     * @param Property[] $propertyList
+     * @return void
+     */
+    public function setPropertyList(array $propertyList): void
     {
         $this->propertyList = $propertyList;
     }
 
     /**
-     * propertyのPHPDocを付与します
-     *
-     * @return Doc
+     * @param Method[] $methodList
+     * @return void
      */
-    public function createPropertyDoc(): Doc
+    public function setMethodList(array $methodList): void
+    {
+        $this->methodList = $methodList;
+    }
+
+    private function getAndFormatStartPoint(string $type): int
     {
         $addPosition = count($this->comments) - 1;
-        $defaultPosition = true;
 
         for ($i = 0; $i < count($this->comments); $i++) {
-            if (strpos($this->comments[$i], self::PROPERTY_PHP_DOC)) {
+            if (strpos($this->comments[$i], $type)) {
                 $addPosition = $i + 1;
-                $defaultPosition = false;
             }
         }
-        if ($defaultPosition) {
-            $this->addComment(
-                ' *',
-                $addPosition
-            );
+        return $addPosition;
+    }
+
+    /**
+     * propertyのPHPDocを付与します
+     */
+    public function addPropertyDoc(): void
+    {
+        if (empty($this->propertyList)) {
+            return;
         }
 
+        $addPosition = $this->getAndFormatStartPoint(self::PROPERTY_PHP_DOC);
         $baseComment = join(PHP_EOL, $this->comments);
+
         foreach ($this->propertyList as $property) {
             if (! preg_match('/\$' . $property->name . '( |'. PHP_EOL . ').*/', $baseComment)) {
                 $this->addComment(
-                    ' * ' . self::PROPERTY_PHP_DOC . ' ' . $property->type . ' $' . $property->name,
-                    $addPosition + $this->addLineCount
+                    ' * ' . self::PROPERTY_PHP_DOC . " {$property->type} \${$property->name}",
+                    $addPosition
                 );
+                $addPosition =+ 1;
             }
         }
-        return $this->createDoc();
+    }
+
+    /**
+     * methodのPHPDocを付与します
+     */
+    public function addMethodDoc(): void
+    {
+        if (empty($this->methodList)) {
+            return;
+        }
+
+        $addPosition = $this->getAndFormatStartPoint(self::METHOD_PHP_DOC);
+        $baseComment = join(PHP_EOL, $this->comments);
+
+        foreach ($this->methodList as $method) {
+            if (! preg_match('/' . $method->name . '\(.*/', $baseComment)) {
+                $this->addComment(
+                    ' * ' . self::METHOD_PHP_DOC . " {$method->returnType} " . ($method->callType ? "{$method->callType} " : '') . "{$method->name}()",
+                    $addPosition
+                );
+                $addPosition =+ 1;
+            }
+        }
     }
 
     /**
@@ -85,7 +128,7 @@ class ClassPhpDocBuilder extends PhpDocBuilder
      *
      * @return Doc
      */
-    private function createDoc(): Doc
+    public function getDoc(): Doc
     {
         return new Doc(
             join(PHP_EOL, $this->comments),
